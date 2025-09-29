@@ -1,7 +1,45 @@
+from datetime import date
+from typing import List
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
-app = FastAPI(title="SecDev Course App", version="0.1.0")
+app = FastAPI(title="Habit Tracker App", version="0.1.0")
+
+
+class HabitCreate(BaseModel):
+    name: str = Field(
+        ..., min_length=1, max_length=100, description="Название привычки"
+    )
+    periodicity: int = Field(..., gt=0, description="Периодичность (в днях)")
+
+
+class HabitResponse(BaseModel):
+    id: int
+    name: str
+    periodicity: int
+    user_id: int
+
+
+class CheckinCreate(BaseModel):
+    habit_id: int = Field(..., gt=0, description="ID привычки")
+    checkin_date: date = Field(..., description="Дата отметки")
+    completed: bool = Field(..., description="Выполнено (да/нет)")
+
+
+class CheckinResponse(BaseModel):
+    id: int
+    habit_id: int
+    checkin_date: date
+    completed: bool
+
+
+class StatsResponse(BaseModel):
+    total_habits: int
+    total_checkins: int
+    completed_checkins: int
+    completion_rate: float
 
 
 class ApiError(Exception):
@@ -34,24 +72,129 @@ def health():
     return {"status": "ok"}
 
 
-# Example minimal entity (for tests/demo)
-_DB = {"items": []}
+_DB = {"users": [{"id": 1, "username": "test_user"}], "habits": [], "checkins": []}
 
 
-@app.post("/items")
-def create_item(name: str):
-    if not name or len(name) > 100:
-        raise ApiError(
-            code="validation_error", message="name must be 1..100 chars", status=422
-        )
-    item = {"id": len(_DB["items"]) + 1, "name": name}
-    _DB["items"].append(item)
-    return item
+@app.post("/habits", response_model=HabitResponse)
+def create_habit(habit: HabitCreate):
+    """Создать новую привычку"""
+    new_habit = {
+        "id": len(_DB["habits"]) + 1,
+        "name": habit.name,
+        "periodicity": habit.periodicity,
+        "user_id": 1,  # Использование тестового пользователя
+    }
+    _DB["habits"].append(new_habit)
+    return new_habit
 
 
-@app.get("/items/{item_id}")
-def get_item(item_id: int):
-    for it in _DB["items"]:
-        if it["id"] == item_id:
-            return it
-    raise ApiError(code="not_found", message="item not found", status=404)
+@app.get("/habits", response_model=List[HabitResponse])
+def get_habits():
+    """Получить все привычки"""
+    return _DB["habits"]
+
+
+@app.get("/habits/{habit_id}", response_model=HabitResponse)
+def get_habit(habit_id: int):
+    """Получить привычку по ID"""
+    for habit in _DB["habits"]:
+        if habit["id"] == habit_id:
+            return habit
+    raise ApiError(code="not_found", message="Habit not found", status=404)
+
+
+@app.put("/habits/{habit_id}", response_model=HabitResponse)
+def update_habit(habit_id: int, habit: HabitCreate):
+    """Обновить привычку"""
+    for h in _DB["habits"]:
+        if h["id"] == habit_id:
+            h["name"] = habit.name
+            h["periodicity"] = habit.periodicity
+            return h
+    raise ApiError(code="not_found", message="Habit not found", status=404)
+
+
+@app.delete("/habits/{habit_id}")
+def delete_habit(habit_id: int):
+    """Удалить привычку"""
+    for i, habit in enumerate(_DB["habits"]):
+        if habit["id"] == habit_id:
+            # Удаляем связанные отметки
+            _DB["checkins"] = [c for c in _DB["checkins"] if c["habit_id"] != habit_id]
+            del _DB["habits"][i]
+            return {"message": "Habit deleted"}
+    raise ApiError(code="not_found", message="Habit not found", status=404)
+
+
+@app.post("/checkins", response_model=CheckinResponse)
+def create_checkin(checkin: CheckinCreate):
+    """Создать отметку о выполнении привычки"""
+    # Проверяем существование привычки
+    habit_exists = any(habit["id"] == checkin.habit_id for habit in _DB["habits"])
+    if not habit_exists:
+        raise ApiError(code="not_found", message="Habit not found", status=404)
+
+    new_checkin = {
+        "id": len(_DB["checkins"]) + 1,
+        "habit_id": checkin.habit_id,
+        "checkin_date": checkin.checkin_date,
+        "completed": checkin.completed,
+    }
+    _DB["checkins"].append(new_checkin)
+    return new_checkin
+
+
+@app.get("/checkins", response_model=List[CheckinResponse])
+def get_checkins():
+    """Получить все отметки"""
+    return _DB["checkins"]
+
+
+@app.get("/checkins/{checkin_id}", response_model=CheckinResponse)
+def get_checkin(checkin_id: int):
+    """Получить отметку по ID"""
+    for checkin in _DB["checkins"]:
+        if checkin["id"] == checkin_id:
+            return checkin
+    raise ApiError(code="not_found", message="Checkin not found", status=404)
+
+
+@app.put("/checkins/{checkin_id}", response_model=CheckinResponse)
+def update_checkin(checkin_id: int, checkin: CheckinCreate):
+    """Обновить отметку"""
+    for c in _DB["checkins"]:
+        if c["id"] == checkin_id:
+            c["habit_id"] = checkin.habit_id
+            c["checkin_date"] = checkin.checkin_date
+            c["completed"] = checkin.completed
+            return c
+    raise ApiError(code="not_found", message="Checkin not found", status=404)
+
+
+@app.delete("/checkins/{checkin_id}")
+def delete_checkin(checkin_id: int):
+    """Удалить отметку"""
+    for i, checkin in enumerate(_DB["checkins"]):
+        if checkin["id"] == checkin_id:
+            del _DB["checkins"][i]
+            return {"message": "Checkin deleted"}
+    raise ApiError(code="not_found", message="Checkin not found", status=404)
+
+
+@app.get("/stats", response_model=StatsResponse)
+def get_stats():
+    """Получить общую статистику по привычкам"""
+    total_habits = len(_DB["habits"])
+    total_checkins = len(_DB["checkins"])
+    completed_checkins = len([c for c in _DB["checkins"] if c["completed"]])
+
+    completion_rate = 0.0
+    if total_checkins > 0:
+        completion_rate = round((completed_checkins / total_checkins) * 100, 2)
+
+    return StatsResponse(
+        total_habits=total_habits,
+        total_checkins=total_checkins,
+        completed_checkins=completed_checkins,
+        completion_rate=completion_rate,
+    )
