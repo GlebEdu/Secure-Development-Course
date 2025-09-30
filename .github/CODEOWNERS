@@ -1,0 +1,7 @@
+# Глобальный владелец (на курс)
+*                 @DaniilCS
+
+# Владелец по компонентам
+app/habits/*        @DaniilCS
+app/checkins/*         @DaniilCS
+app/stats/*         @DaniilCS
