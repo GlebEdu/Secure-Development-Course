@@ -62,7 +62,7 @@ jobs:
 
       - name: Check p95 from k6 report
         run: |
-          P95=$(jq '.metrics.http_req_duration.p(95)' report.json)
+          P95=$(jq '.metrics["http_req_duration"]["p(95)"]' report.json)
           echo "Measured p95 = $P95 ms"
           if (( $(echo "$P95 > 200" | bc -l) )); then
             echo "❌ NFR-01 FAILED: p95 > 200ms"
