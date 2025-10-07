@@ -36,3 +36,37 @@ jobs:
 
       - name: Pre-commit (all files)
         run: pre-commit run --all-files
+
+      # --- NFR-01: Performance check via k6 ---
+      - name: Start API server
+        run: |
+          nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 5
+
+      - name: Install k6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates gnupg
+          sudo mkdir -p /etc/apt/keyrings
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6 jq bc
+
+      - name: Run NFR API performance test
+        env:
+          BASE_URL: http://localhost:8000
+        run: |
+          echo "Starting NFR-01: checking p95 ≤ 200ms"
+          k6 run tests/nfr_api_performance.js --summary-export=report.json
+
+      - name: Check p95 from k6 report
+        run: |
+          P95=$(jq '.metrics["http_req_duration"]["p(95)"]' report.json)
+          echo "Measured p95 = $P95 ms"
+          if (( $(echo "$P95 > 200" | bc -l) )); then
+            echo "❌ NFR-01 FAILED: p95 > 200ms"
+            exit 1
+          else
+            echo "✅ NFR-01 PASSED: p95 ≤ 200ms"
+          fi
