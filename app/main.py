@@ -3,6 +3,7 @@ from typing import List
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from .rate_limit import init_rate_limiting, limiter
 from .schemas import (
     CheckinCreate,
     CheckinResponse,
@@ -12,6 +13,7 @@ from .schemas import (
 )
 
 app = FastAPI(title="Habit Tracker App", version="0.1.0")
+app = init_rate_limiting(app)
 
 
 class ApiError(Exception):
@@ -40,7 +42,8 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 
 @app.get("/health")
-def health():
+@limiter.limit("50/minute")
+def health(request: Request):
     return {"status": "ok"}
 
 
