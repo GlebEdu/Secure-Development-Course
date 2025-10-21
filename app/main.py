@@ -2,11 +2,16 @@ from contextlib import asynccontextmanager
 from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
 from sqlalchemy import Integer, func, text
 from sqlalchemy.orm import Session
 
 from .database import engine, get_db
+from .errorsRFC7807 import (
+    ApiError,
+    api_error_handler,
+    general_exception_handler,
+    http_exception_handler,
+)
 from .models import Base, Checkin, Habit, User
 from .rate_limit import init_rate_limiting, limiter
 from .schemas import (
@@ -53,29 +58,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Habit Tracker App", version="0.1.0", lifespan=lifespan)
 app = init_rate_limiting(app)
 
-
-class ApiError(Exception):
-    def __init__(self, code: str, message: str, status: int = 400):
-        self.code = code
-        self.message = message
-        self.status = status
-
-
-@app.exception_handler(ApiError)
-async def api_error_handler(request: Request, exc: ApiError):
-    return JSONResponse(
-        status_code=exc.status,
-        content={"error": {"code": exc.code, "message": exc.message}},
-    )
-
-
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    detail = exc.detail if isinstance(exc.detail, str) else "http_error"
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"error": {"code": "http_error", "message": detail}},
-    )
+# Регистрируем обработчики ошибок
+app.add_exception_handler(ApiError, api_error_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(Exception, general_exception_handler)
 
 
 @app.get("/health")
@@ -127,7 +113,7 @@ def get_habit(habit_id: int, db: Session = Depends(get_db)):
     habit = db.query(Habit).filter(Habit.id == habit_id, Habit.user_id == 1).first()
 
     if not habit:
-        raise ApiError(code="not_found", message="Habit not found", status=404)
+        raise ApiError(code="NOT_FOUND", message="Habit not found", status=404)
 
     return habit
 
@@ -138,7 +124,7 @@ def get_habit_detailed(habit_id: int, db: Session = Depends(get_db)):
     habit = db.query(Habit).filter(Habit.id == habit_id, Habit.user_id == 1).first()
 
     if not habit:
-        raise ApiError(code="not_found", message="Habit not found", status=404)
+        raise ApiError(code="NOT_FOUND", message="Habit not found", status=404)
 
     return habit
 
@@ -149,7 +135,7 @@ def update_habit(habit_id: int, habit: HabitCreate, db: Session = Depends(get_db
     db_habit = db.query(Habit).filter(Habit.id == habit_id, Habit.user_id == 1).first()
 
     if not db_habit:
-        raise ApiError(code="not_found", message="Habit not found", status=404)
+        raise ApiError(code="NOT_FOUND", message="Habit not found", status=404)
 
     db_habit.name = habit.name
     db_habit.periodicity = habit.periodicity
@@ -166,7 +152,7 @@ def delete_habit(habit_id: int, db: Session = Depends(get_db)):
     db_habit = db.query(Habit).filter(Habit.id == habit_id, Habit.user_id == 1).first()
 
     if not db_habit:
-        raise ApiError(code="not_found", message="Habit not found", status=404)
+        raise ApiError(code="NOT_FOUND", message="Habit not found", status=404)
 
     db.delete(db_habit)
     db.commit()
@@ -183,7 +169,7 @@ def create_checkin(checkin: CheckinCreate, db: Session = Depends(get_db)):
     )
 
     if not habit:
-        raise ApiError(code="not_found", message="Habit not found", status=404)
+        raise ApiError(code="NOT_FOUND", message="Habit not found", status=404)
 
     existing_checkin = (
         db.query(Checkin)
@@ -196,7 +182,7 @@ def create_checkin(checkin: CheckinCreate, db: Session = Depends(get_db)):
 
     if existing_checkin:
         raise ApiError(
-            code="duplicate_checkin",
+            code="DUPLICATE_CHECKIN",
             message="Checkin already exists for this date",
             status=400,
         )
@@ -233,7 +219,7 @@ def get_checkin(checkin_id: int, db: Session = Depends(get_db)):
     )
 
     if not checkin:
-        raise ApiError(code="not_found", message="Checkin not found", status=404)
+        raise ApiError(code="NOT_FOUND", message="Checkin not found", status=404)
 
     return checkin
 
@@ -251,7 +237,7 @@ def update_checkin(
     )
 
     if not db_checkin:
-        raise ApiError(code="not_found", message="Checkin not found", status=404)
+        raise ApiError(code="NOT_FOUND", message="Checkin not found", status=404)
 
     if db_checkin.habit_id != checkin.habit_id:
         new_habit = (
@@ -261,7 +247,7 @@ def update_checkin(
         )
 
         if not new_habit:
-            raise ApiError(code="not_found", message="Habit not found", status=404)
+            raise ApiError(code="NOT_FOUND", message="Habit not found", status=404)
 
     if (
         db_checkin.habit_id != checkin.habit_id
@@ -279,7 +265,7 @@ def update_checkin(
 
         if existing_checkin:
             raise ApiError(
-                code="duplicate_checkin",
+                code="DUPLICATE_CHECKIN",
                 message="Checkin already exists for this date",
                 status=400,
             )
@@ -305,7 +291,7 @@ def delete_checkin(checkin_id: int, db: Session = Depends(get_db)):
     )
 
     if not checkin:
-        raise ApiError(code="not_found", message="Checkin not found", status=404)
+        raise ApiError(code="NOT_FOUND", message="Checkin not found", status=404)
 
     db.delete(checkin)
     db.commit()
@@ -352,7 +338,7 @@ def get_habit_stats(habit_id: int, db: Session = Depends(get_db)):
     habit = db.query(Habit).filter(Habit.id == habit_id, Habit.user_id == 1).first()
 
     if not habit:
-        raise ApiError(code="not_found", message="Habit not found", status=404)
+        raise ApiError(code="NOT_FOUND", message="Habit not found", status=404)
 
     checkin_stats = (
         db.query(
