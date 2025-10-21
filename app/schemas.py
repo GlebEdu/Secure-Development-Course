@@ -1,6 +1,7 @@
 from datetime import date
+from typing import List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class HabitCreate(BaseModel):
@@ -16,6 +17,8 @@ class HabitResponse(BaseModel):
     periodicity: int
     user_id: int
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class CheckinCreate(BaseModel):
     habit_id: int = Field(..., gt=0, description="ID привычки")
@@ -29,9 +32,30 @@ class CheckinResponse(BaseModel):
     checkin_date: date
     completed: bool
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class StatsResponse(BaseModel):
     total_habits: int
     total_checkins: int
     completed_checkins: int
     completion_rate: float
+
+
+class HabitWithCheckins(HabitResponse):
+    """Схема привычки с списком отметок"""
+
+    checkins: List[CheckinResponse] = []
+
+
+class UserCreate(BaseModel):
+    username: str = Field(
+        ..., min_length=1, max_length=50, description="Имя пользователя"
+    )
+
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+
+    model_config = ConfigDict(from_attributes=True)

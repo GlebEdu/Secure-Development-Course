@@ -1,3 +1,5 @@
 fastapi==0.112.2
 uvicorn==0.30.5
 slowapi
+sqlalchemy>=1.4.0
+pydantic>=1.8.0
