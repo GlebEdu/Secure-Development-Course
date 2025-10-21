@@ -24,6 +24,13 @@ class TestCheckinsCRUD:
         }
         response = client.post("/checkins", json=checkin_data)
         assert response.status_code == 404
+        body = response.json()
+        assert body["code"] == "NOT_FOUND"
+        assert body["title"] == "Not Found"
+        assert body["detail"] == "Habit not found"
+        assert body["status"] == 404
+        assert "correlation_id" in body
+        assert "timestamp" in body
 
     def test_get_all_checkins(self, client, sample_checkin):
         """Тест получения всех отметок"""
@@ -45,8 +52,12 @@ class TestCheckinsCRUD:
         response = client.get("/checkins/999")
         assert response.status_code == 404
         body = response.json()
-        assert body["error"]["code"] == "not_found"
-        assert "message" in body["error"]
+        assert body["code"] == "NOT_FOUND"
+        assert body["title"] == "Not Found"
+        assert body["detail"] == "Checkin not found"
+        assert body["status"] == 404
+        assert "correlation_id" in body
+        assert "timestamp" in body
 
     def test_update_checkin(self, client, sample_checkin):
         """Тест обновления отметки"""
@@ -70,8 +81,12 @@ class TestCheckinsCRUD:
         response = client.put("/checkins/999", json=update_data)
         assert response.status_code == 404
         body = response.json()
-        assert body["error"]["code"] == "not_found"
-        assert "message" in body["error"]
+        assert body["code"] == "NOT_FOUND"
+        assert body["title"] == "Not Found"
+        assert body["detail"] == "Checkin not found"
+        assert body["status"] == 404
+        assert "correlation_id" in body
+        assert "timestamp" in body
 
     def test_delete_checkin(self, client, sample_checkin):
         """Тест удаления отметки"""
@@ -85,5 +100,9 @@ class TestCheckinsCRUD:
         response = client.delete("/checkins/999")
         assert response.status_code == 404
         body = response.json()
-        assert body["error"]["code"] == "not_found"
-        assert "message" in body["error"]
+        assert body["code"] == "NOT_FOUND"
+        assert body["title"] == "Not Found"
+        assert body["detail"] == "Checkin not found"
+        assert body["status"] == 404
+        assert "correlation_id" in body
+        assert "timestamp" in body

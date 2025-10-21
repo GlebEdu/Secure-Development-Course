@@ -40,7 +40,12 @@ class TestHabitsCRUD:
         response = client.get("/habits/999")
         assert response.status_code == 404
         body = response.json()
-        assert body["error"]["code"] == "not_found"
+        assert body["code"] == "NOT_FOUND"
+        assert body["title"] == "Not Found"
+        assert body["detail"] == "Habit not found"
+        assert body["status"] == 404
+        assert "correlation_id" in body
+        assert "timestamp" in body
 
     def test_update_habit(self, client, sample_habit):
         """Тест обновления привычки"""
@@ -58,8 +63,12 @@ class TestHabitsCRUD:
         response = client.put("/habits/999", json=update_data)
         assert response.status_code == 404
         body = response.json()
-        assert body["error"]["code"] == "not_found"
-        assert "message" in body["error"]
+        assert body["code"] == "NOT_FOUND"
+        assert body["title"] == "Not Found"
+        assert body["detail"] == "Habit not found"
+        assert body["status"] == 404
+        assert "correlation_id" in body
+        assert "timestamp" in body
 
     def test_delete_habit(self, client, sample_habit):
         """Тест удаления привычки"""
@@ -73,5 +82,9 @@ class TestHabitsCRUD:
         response = client.delete("/habits/999")
         assert response.status_code == 404
         body = response.json()
-        assert body["error"]["code"] == "not_found"
-        assert "message" in body["error"]
+        assert body["code"] == "NOT_FOUND"
+        assert body["title"] == "Not Found"
+        assert body["detail"] == "Habit not found"
+        assert body["status"] == 404
+        assert "correlation_id" in body
+        assert "timestamp" in body

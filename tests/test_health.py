@@ -8,4 +8,7 @@ client = TestClient(app)
 def test_health_ok():
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok"}
+    response_data = r.json()
+    assert response_data["status"] == "ok"
+    assert "database" in response_data
+    assert response_data["database"] in ["connected", "disconnected"]
