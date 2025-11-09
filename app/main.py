@@ -71,6 +71,24 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Habit Tracker App", version="0.1.0", lifespan=lifespan)
 app = init_rate_limiting(app)
 
+
+# Security Headers Middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+
+    # Защита от clickjacking
+    response.headers["X-Frame-Options"] = "DENY"
+    # Запрет подмены типа контента
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    # Включение XSS защиты в браузере
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    # Контроль передачи referrer
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    return response
+
+
 # Регистрируем обработчики ошибок
 app.add_exception_handler(ApiError, api_error_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
