@@ -143,7 +143,10 @@ def login_for_access_token(form_data: UserLogin, db: Session = Depends(get_db)):
 @app.get("/users/me")
 def read_users_me(current_user: User = Depends(get_current_user)):
     """Получить информацию о текущем пользователе"""
-    return {"id": current_user.id, "username": current_user.username}
+    return {
+        "id": current_user.id,
+        "username": current_user.username[:3] + "***",  # Маскировка
+    }
 
 
 # Habit Endpoints

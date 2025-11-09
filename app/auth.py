@@ -63,7 +63,8 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[Use
 
     if not verify_password(password, user.password):
         # Логируем неверный пароль
-        print(f"Failed login attempt for user: {username}")
+        masked_username = f"{username[:3]}***" if len(username) > 3 else "***"
+        print(f"Failed login for user: {masked_username}")
         return None
 
     # Успешная аутентификация
