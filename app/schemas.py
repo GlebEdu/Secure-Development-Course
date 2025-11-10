@@ -59,3 +59,25 @@ class UserResponse(BaseModel):
     username: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserLogin(BaseModel):
+    """Схема для входа пользователя"""
+
+    username: str = Field(
+        ..., min_length=1, max_length=50, description="Имя пользователя"
+    )
+    password: str = Field(..., min_length=1, description="Пароль")
+
+
+class Token(BaseModel):
+    """Схема для JWT токена"""
+
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    """Данные внутри JWT токена"""
+
+    username: str | None = None

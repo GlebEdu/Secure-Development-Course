@@ -8,7 +8,10 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)
+    username = Column(
+        String(50), unique=True, index=True, nullable=False
+    )  # Ограничили длину
+    password = Column(String(255), nullable=False)
 
     habits = relationship("Habit", back_populates="user")
 
@@ -45,8 +48,9 @@ class Checkin(Base):
 
     habit = relationship("Habit", back_populates="checkins")
 
-    def __repr__(self):
-        return (
-            f"<Checkin(id={self.id}, habit_id={self.habit_id}, "
-            f"date={self.checkin_date}, completed={self.completed})>"
-        )
+
+def __repr__(self):
+    return (
+        f"<Checkin(id={self.id}, habit_id={self.habit_id}, "
+        f"date={self.checkin_date}, completed={self.completed})>"
+    )
