@@ -8,3 +8,16 @@ exclude = ["venv",".venv","build","dist"]
 profile = "black"
 line_length = 88
 multi_line_output = 3
+
+[tool.flake8]
+max-line-length = 88
+extend-select = ["B", "B9"]  # B - bugbear errors, B9 - bugbear opinions
+ignore = [
+    "E203",  # space before colon (conflicts with black)
+    "W503",  # line break before binary operator
+    "B008",  # do not perform function calls in argument defaults
+    "B009",  # do not call getattr with a constant attribute
+]
+per-file-ignores = [
+    "tests/*: B010",  # ignore specific rules in tests
+]
