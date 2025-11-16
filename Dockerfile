@@ -1,20 +1,54 @@
-# Build stage
-FROM python:3.11-slim AS build
-WORKDIR /app
-COPY requirements.txt requirements-dev.txt ./
-RUN pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
-COPY . .
-RUN pytest -q
+# Multi-stage build
+FROM python:3.11-slim AS builder
 
-# Runtime stage
+# Установка зависимостей для сборки
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Создание виртуального окружения
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Копирование и установка зависимостей
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Финальный образ
 FROM python:3.11-slim
+
+# Метаданные
+LABEL description="Habit Tracker API"
+LABEL version="1.0.0"
+
+# Установка только runtime зависимостей + curl для healthcheck
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r app && useradd -r -g app app
+
+# Копирование виртуального окружения из builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Создание рабочих директорий
+RUN mkdir -p /app/data && chown -R app:app /app
+
 WORKDIR /app
-RUN useradd -m appuser
-COPY --from=build /usr/local/lib/python3.11 /usr/local/lib/python3.11
-COPY --from=build /usr/local/bin /usr/local/bin
-COPY . .
+
+# Копирование приложения с правильными правами
+COPY --chown=app:app ./app ./app
+COPY --chown=app:app requirements.txt .
+
+# Переключаемся на не-root пользователя
+USER app
+
+# Явное объявление точки входа
+ENTRYPOINT ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# Healthcheck с curl (проверяет эндпоинт /health)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
 EXPOSE 8000
-HEALTHCHECK CMD curl -f http://localhost:8000/health || exit 1
-USER appuser
-ENV PYTHONUNBUFFERED=1
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
