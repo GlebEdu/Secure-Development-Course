@@ -1,11 +1,28 @@
 services:
   app:
+    container_name: habit-tracker
     build: .
     ports:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
-      - DATABASE_URL=sqlite:////app/data/app.db
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRE_MINUTES=1440
+    env_file:
+      - .env  # Секретные переменные (SECRET_KEY, DATABASE_URL)
     volumes:
       - ./data:/app/data
     working_dir: /app
+    networks:
+      - habit-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+networks:
+  habit-network:
+    driver: bridge
