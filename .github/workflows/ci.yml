@@ -128,6 +128,7 @@ jobs:
         with:
           name: performance-reports
           path: performance-report.json
+
   docker-build:
     runs-on: ubuntu-latest
     needs: test
@@ -136,7 +137,7 @@ jobs:
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       JWT_ALGORITHM: HS256
       JWT_EXPIRE_MINUTES: 1440
-      DATABASE_URL: sqlite:///./data/test.db
+      DATABASE_URL: "sqlite:///:memory:"
 
     steps:
       - name: Checkout
@@ -154,8 +155,7 @@ jobs:
             ${{ runner.os }}-docker-${{ hashFiles('Dockerfile', 'requirements.txt', 'requirements-dev.txt', 'docker-compose.yml') }}
 
       - name: Build test image
-        run: |
-          docker build --target tester -t habit-tracker-test:${{ github.sha }} .
+        run: docker build --target tester -t habit-tracker-test:${{ github.sha }} .
 
       - name: Run tests in Docker container
         run: |
@@ -163,7 +163,7 @@ jobs:
             -e SECRET_KEY="$SECRET_KEY" \
             -e JWT_ALGORITHM="$JWT_ALGORITHM" \
             -e JWT_EXPIRE_MINUTES="$JWT_EXPIRE_MINUTES" \
-            -e DATABASE_URL="$DATABASE_URL" \
+            -e DATABASE_URL="sqlite:///:memory:" \
             habit-tracker-test:${{ github.sha }} python -m pytest -v --disable-warnings
 
       - name: Build Docker image (multi-stage)
@@ -185,45 +185,31 @@ jobs:
         run: |
           cat > .env <<EOF
           SECRET_KEY=$SECRET_KEY
-          DATABASE_URL=$DATABASE_URL
+          DATABASE_URL=sqlite:///./data/prod.db
           JWT_ALGORITHM=$JWT_ALGORITHM
           JWT_EXPIRE_MINUTES=$JWT_EXPIRE_MINUTES
           EOF
 
       - name: Test Docker healthcheck
         run: |
-          # Запускаем контейнер в фоне
           docker run --rm -d -p 8000:8000 --name test-container \
             -e SECRET_KEY="$SECRET_KEY" \
             -e JWT_ALGORITHM="$JWT_ALGORITHM" \
             -e JWT_EXPIRE_MINUTES="$JWT_EXPIRE_MINUTES" \
-            -e DATABASE_URL="$DATABASE_URL" \
+            -e DATABASE_URL="sqlite:////tmp/test.db" \
             habit-tracker:${{ github.sha }}
-
-          # Ждем пока healthcheck станет healthy
           echo "Waiting for container to be healthy..."
           timeout 30s bash -c 'until [ "$(docker inspect -f {{.State.Health.Status}} test-container)" = "healthy" ]; do sleep 2; done'
-
-          # Проверяем что контейнер работает
           docker ps | grep test-container
-
-          # Останавливаем контейнер
           docker stop test-container
 
       - name: Test with docker-compose
         run: |
-          # Собираем и запускаем через docker-compose
           docker-compose -f docker-compose.yml build
           docker-compose -f docker-compose.yml up -d
           sleep 10
-
-          # Проверяем что сервис запустился
           docker-compose ps
-
-          # Тестируем health endpoint
           curl -f http://localhost:8000/health || (docker-compose logs && exit 1)
-
-          # Останавливаем
           docker-compose down
 
       - name: Upload Docker logs on failure
