@@ -211,8 +211,8 @@ jobs:
 
       - name: Test with docker-compose
         run: |
-          docker-compose -f docker-compose.yml build
-          docker-compose -f docker-compose.yml up -d
+          docker-compose build
+          docker-compose up -d
           sleep 10
           docker-compose ps
           curl -f http://localhost:8000/health || (docker-compose logs && exit 1)
