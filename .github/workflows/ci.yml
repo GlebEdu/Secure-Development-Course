@@ -174,7 +174,7 @@ jobs:
 
       - name: Run tests in Docker container
         run: |
-          docker run --rm habit-tracker:${{ github.sha }} pytest -v --disable-warnings
+          docker run --rm --entrypoint="" habit-tracker:${{ github.sha }} python -m pytest -v --disable-warnings
 
       - name: Test Docker healthcheck
         run: |
