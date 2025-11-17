@@ -132,6 +132,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     timeout-minutes: 15
+    env:
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_MINUTES: 1440
+      DATABASE_URL: sqlite:///./data/test.db
 
     steps:
       - name: Checkout
@@ -154,7 +159,12 @@ jobs:
 
       - name: Run tests in Docker container
         run: |
-          docker run --rm habit-tracker-test:${{ github.sha }} python -m pytest -v --disable-warnings
+          docker run --rm \
+            -e SECRET_KEY="$SECRET_KEY" \
+            -e JWT_ALGORITHM="$JWT_ALGORITHM" \
+            -e JWT_EXPIRE_MINUTES="$JWT_EXPIRE_MINUTES" \
+            -e DATABASE_URL="$DATABASE_URL" \
+            habit-tracker-test:${{ github.sha }} python -m pytest -v --disable-warnings
 
       - name: Build Docker image (multi-stage)
         uses: docker/build-push-action@v4
@@ -183,7 +193,12 @@ jobs:
       - name: Test Docker healthcheck
         run: |
           # Запускаем контейнер в фоне
-          docker run --rm -d -p 8000:8000 --name test-container habit-tracker:${{ github.sha }}
+          docker run --rm -d -p 8000:8000 --name test-container \
+            -e SECRET_KEY="$SECRET_KEY" \
+            -e JWT_ALGORITHM="$JWT_ALGORITHM" \
+            -e JWT_EXPIRE_MINUTES="$JWT_EXPIRE_MINUTES" \
+            -e DATABASE_URL="$DATABASE_URL" \
+            habit-tracker:${{ github.sha }}
 
           # Ждем пока healthcheck станет healthy
           echo "Waiting for container to be healthy..."
