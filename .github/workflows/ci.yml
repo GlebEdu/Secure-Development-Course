@@ -209,13 +209,23 @@ jobs:
           sudo chmod +x /usr/local/bin/docker-compose
           docker-compose --version
 
+      - name: Create .env for docker-compose
+        run: |
+          cat > .env <<EOF
+          SECRET_KEY=$SECRET_KEY
+          DATABASE_URL=sqlite:///:memory:
+          JWT_ALGORITHM=$JWT_ALGORITHM
+          JWT_EXPIRE_MINUTES=$JWT_EXPIRE_MINUTES
+          EOF
+
       - name: Test with docker-compose
         run: |
           docker-compose build
           docker-compose up -d
-          sleep 10
+          sleep 15
           docker-compose ps
-          curl -f http://localhost:8000/health || (docker-compose logs && exit 1)
+          echo "Waiting for healthcheck to pass..."
+          timeout 30s bash -c 'until curl -f http://localhost:8000/health; do sleep 2; done'
           docker-compose down
 
       - name: Upload Docker logs on failure
