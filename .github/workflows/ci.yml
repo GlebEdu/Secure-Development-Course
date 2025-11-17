@@ -144,9 +144,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-docker-${{ hashFiles('Dockerfile', 'requirements.txt', 'docker-compose.yml') }}-${{ github.sha }}
+          key: ${{ runner.os }}-docker-${{ hashFiles('Dockerfile', 'requirements.txt', 'requirements-dev.txt', 'docker-compose.yml') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-docker-${{ hashFiles('Dockerfile', 'requirements.txt', 'docker-compose.yml') }}
+            ${{ runner.os }}-docker-${{ hashFiles('Dockerfile', 'requirements.txt', 'requirements-dev.txt', 'docker-compose.yml') }}
+
+      - name: Build test image
+        run: |
+          docker build --target tester -t habit-tracker-test:${{ github.sha }} .
+
+      - name: Run tests in Docker container
+        run: |
+          docker run --rm habit-tracker-test:${{ github.sha }} python -m pytest -v --disable-warnings
 
       - name: Build Docker image (multi-stage)
         uses: docker/build-push-action@v4
@@ -171,10 +179,6 @@ jobs:
           JWT_ALGORITHM=$JWT_ALGORITHM
           JWT_EXPIRE_MINUTES=$JWT_EXPIRE_MINUTES
           EOF
-
-      - name: Run tests in Docker container
-        run: |
-          docker run --rm --entrypoint="" habit-tracker:${{ github.sha }} python -m pytest -v --disable-warnings
 
       - name: Test Docker healthcheck
         run: |

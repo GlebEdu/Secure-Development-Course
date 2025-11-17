@@ -15,7 +15,28 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Финальный образ
+# Тестовая стадия
+FROM python:3.11-slim AS tester
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r app && useradd -r -g app app
+
+# Копирование виртуального окружения из builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Установка тестовых зависимостей
+COPY requirements-dev.txt .
+RUN pip install --no-cache-dir -r requirements-dev.txt
+
+WORKDIR /app
+COPY --chown=app:app . .
+
+USER app
+
+# Финальный образ (без изменений)
 FROM python:3.11-slim
 
 # Метаданные
