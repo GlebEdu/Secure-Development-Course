@@ -124,15 +124,15 @@ class TestCheckinsCRUD:
     def test_access_without_auth(self, client, sample_checkin):
         """Тест доступа без аутентификации"""
         response = client.get("/checkins")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
         response = client.get(f"/checkins/{sample_checkin['id']}")
-        assert response.status_code == 403
+        assert response.status_code == 401
         response = client.post("/checkins", json={})
-        assert response.status_code == 403
+        assert response.status_code == 401
 
         response = client.put(f"/checkins/{sample_checkin['id']}", json={})
-        assert response.status_code == 403
+        assert response.status_code == 401
 
         response = client.delete(f"/checkins/{sample_checkin['id']}")
-        assert response.status_code == 403
+        assert response.status_code == 401

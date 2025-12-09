@@ -1,0 +1,58 @@
+waivers:
+  # 1. SUCCESS: Starlette vulnerabilities FIXED
+  - id: "starlette-fixed"
+    cves: ["CVE-2024-47874", "CVE-2025-54121"]
+    package: "starlette"
+    version_constraint: ">=0.47.2"
+    severity: "High"
+    status: "FIXED"
+    fix_details: |
+      Updated as part of P09 security implementation:
+      - fastapi: 0.112.2 → 0.124.0
+      - starlette: 0.38.6 → 0.50.0
+      - Breaking changes handled: 403 → 401 status code
+    fix_date: "2025-12-09"
+    verified_by: "automated-tests"
+
+  # 2. pip - обновляем статус на FIXED
+  - id: "pip-upgrade-completed"
+    cve: "CVE-2025-8869"
+    package: "pip"
+    version_constraint: ">=25.3"
+    severity: "Low"
+    applies_to: ["dev", "ci"]
+    status: "FIXED"
+    fix_date: "2025-12-09"
+
+  # 3. ecdsa - транзитивная зависимость
+  - id: "ecdsa-transitive"
+    cve: "CVE-2024-23342"
+    package: "ecdsa"
+    version_constraint: "0.19.1"
+    severity: "Medium"
+    applies_to: ["production"]
+    reason: |
+      Транзитивная зависимость через python-jose[cryptography].
+      Не используется напрямую в коде приложения.
+      Обновление может сломать compatibility chain.
+    mitigation: |
+      - Мониторинг обновлений upstream зависимостей
+      - Планирование миграции на более новые версии
+    expires_at: "2026-01-01"
+    review_cycle: "monthly"
+
+  # 4. setuptools - инструмент сборки
+  - id: "setuptools-build-tool"
+    cves: ["PYSEC-2022-43012", "PYSEC-2025-49", "CVE-2024-6345"]
+    package: "setuptools"
+    version_constraint: "<70.0.0"
+    severity: "Medium"
+    applies_to: ["dev", "build"]
+    reason: |
+      Инструмент сборки, изолирован в CI-окружении.
+      Не влияет на runtime безопасность приложения.
+      Обновление требует проверки compatibility с другими инструментами.
+    action_plan: |
+      - [ ] Обновить в CI Docker образе
+      - [ ] Протестировать сборку с новой версией
+    expires_at: "2026-01-01"

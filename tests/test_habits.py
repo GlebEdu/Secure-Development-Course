@@ -94,21 +94,21 @@ class TestHabitsCRUD:
     def test_access_without_auth(self, client, sample_habit):
         """Тест доступа без аутентификации"""
         response = client.get("/habits")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
         response = client.get(f"/habits/{sample_habit['id']}")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
         response = client.post("/habits", json={"name": "test", "periodicity": 1})
-        assert response.status_code == 403
+        assert response.status_code == 401
 
         response = client.put(
             f"/habits/{sample_habit['id']}", json={"name": "test", "periodicity": 1}
         )
-        assert response.status_code == 403
+        assert response.status_code == 401
 
         response = client.delete(f"/habits/{sample_habit['id']}")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_xss_protection_in_habit_name(self, client, auth_headers):
         """Тест защиты от XSS в названии привычки"""
