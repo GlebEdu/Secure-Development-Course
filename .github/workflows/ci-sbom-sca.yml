@@ -107,11 +107,11 @@ jobs:
             echo "| Severity | Count | Percentage |" >> EVIDENCE/P09/sca_summary.md
             echo "|----------|-------|------------|" >> EVIDENCE/P09/sca_summary.md
 
-            # Получаем counts для каждого уровня
+            # Получаем counts для каждого уровня (ИСПРАВЛЕНО: sca_report.json вместо sca_summary.md)
             CRITICAL=$(jq '[.matches[] | select(.vulnerability.severity == "Critical")] | length' EVIDENCE/P09/sca_report.json)
             HIGH=$(jq '[.matches[] | select(.vulnerability.severity == "High")] | length' EVIDENCE/P09/sca_report.json)
             MEDIUM=$(jq '[.matches[] | select(.vulnerability.severity == "Medium")] | length' EVIDENCE/P09/sca_report.json)
-            LOW=$(jq '[.matches[] | select(.vulnerability.severity == "Low")] | length' EVIDENCE/P09/sca_summary.md
+            LOW=$(jq '[.matches[] | select(.vulnerability.severity == "Low")] | length' EVIDENCE/P09/sca_report.json)  # ИСПРАВЛЕНО
             UNKNOWN=$(jq '[.matches[] | select(.vulnerability.severity == "Unknown" or .vulnerability.severity == "")] | length' EVIDENCE/P09/sca_report.json)
 
             # Вычисляем проценты
@@ -168,7 +168,6 @@ jobs:
             echo "" >> EVIDENCE/P09/sca_summary.md
             echo "All dependencies are clean from known vulnerabilities." >> EVIDENCE/P09/sca_summary.md
           fi
-
       - name: Check for critical vulnerabilities
         if: always()
         run: |
