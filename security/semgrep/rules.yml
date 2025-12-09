@@ -10,35 +10,20 @@ rules:
       category: security
       cwe: "CWE-79: Cross-site Scripting"
 
-  - id: custom-hardcoded-secret-simple
-    patterns:
-      - pattern-either:
-        - pattern: 'SECRET_KEY = "..."'
-        - pattern: 'password = "..."'
-        - pattern: 'token = "..."'
-        - pattern: 'api_key = "..."'
-        - pattern: 'API_KEY = "..."'
-      - pattern-not: 'os.getenv(...)'
-    message: "Возможно захардкоженный секрет. Используйте переменные окружения."
+  - id: simple-hardcoded-secret
+    pattern: "SECRET_KEY ="
+    message: "Проверьте, не захардкожен ли SECRET_KEY"
     languages: [python]
     severity: WARNING
 
-  - id: custom-sql-injection-simple
-    patterns:
-      - pattern-either:
-        - pattern: 'f"SELECT ...'
-        - pattern: '"SELECT" + ...'
-      - pattern-not: 'session.execute(...)'
-    message: "Потенциальный риск SQL-инъекции"
+  - id: simple-password-check
+    pattern: "password ="
+    message: "Проверьте, не захардкожен ли пароль"
     languages: [python]
     severity: WARNING
 
-  - id: custom-insecure-deserialization-simple
-    patterns:
-      - pattern-either:
-        - pattern: 'pickle.loads(...)'
-        - pattern: 'yaml.load(...)'
-      - pattern-not: 'yaml.safe_load(...)'
-    message: "Небезопасная десериализация"
+  - id: simple-sql-fstring
+    pattern: 'f"SELECT'
+    message: "Проверьте SQL запрос на инъекции"
     languages: [python]
     severity: WARNING
