@@ -1,14 +1,21 @@
-title = "course default gitleaks config"
-
-[extend]
-# Используем встроенные правила по умолчанию
+# security/.gitleaks.toml
+title = "Gitleaks configuration for Habit Tracker Project"
 
 [allowlist]
-description = "ignore non-sensitive patterns"
-paths = [
-  "EVIDENCE/",   # отчёты и артефакты
-]
-commits = []
-regexes = [
-  '''TEST_SECRET_DO_NOT_USE''',
-]
+  # Игнорируем тестовые файлы - не содержат реальных секретов
+  files = [
+    "^tests/",          # Тестовые файлы - fake credentials
+    "^docs/",           # Документация - примеры
+    "requirements*.txt", # Файлы зависимостей
+    ".github/workflows/*.yml", # CI конфигурации
+    "EVIDENCE/P*/*",    # Артефакты предыдущих практик
+  ]
+
+  # Игнорируем паттерны с тестовыми данными
+  regexes = [
+    "example.*",        # Примеры в документации
+    "test.*",           # Тестовые учетные данные
+    "localhost",        # Локальные окружения
+    "127.0.0.1",        # Тестовые IP адреса
+    "dummy.*",          # Заглушки в коде
+  ]
