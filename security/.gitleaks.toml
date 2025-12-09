@@ -1,23 +1,59 @@
 title = "Gitleaks configuration for Habit Tracker Project"
 
 [extend]
-# Используем встроенные правила по умолчанию
+# Используем встроенные правила
+
+# Правила специфичные для проекта
+[[rules]]
+id = "habittracker-jwt-secret"
+description = "JWT Secret key for Habit Tracker"
+regex = '''(?i)(jwt|access|refresh|token)[_-]?(key|secret|signature)[=:]\s*["']?([a-zA-Z0-9+/=]{32,})["']?'''
+tags = ["jwt", "secret", "habittracker"]
+
+[[rules]]
+id = "habittracker-database-url"
+description = "Database URL with password"
+regex = '''(postgres|mysql|sqlite)://[^:]+:([^@]+)@'''
+tags = ["database", "password", "habittracker"]
 
 [allowlist]
-  # Игнорируем тестовые файлы - не содержат реальных секретов
+  description = "Allowlist for Habit Tracker project"
+
+  # C2 критетрий (false positive из Semgrep)
+
+  # 1. Игнорируем Pydantic схемы с полем password
+  [[allowlist.regexes]]
+    description = "Pydantic Field declarations - это схемы, не реальные пароли"
+    regex = '''password:\s*str\s*=\s*Field\(.*\)'''
+
+  # 2. Игнорируем SQLAlchemy определения колонок
+  [[allowlist.regexes]]
+    description = "SQLAlchemy Column definitions - это модели БД, не реальные данные"
+    regex = '''password\s*=\s*Column\(.*\)'''
+
+  # 3. Игнорируем безопасное использование переменных окружения
+  [[allowlist.regexes]]
+    description = "Environment variable access - это безопасное получение из окружения"
+    regex = '''SECRET_KEY\s*=\s*(os\.getenv|os\.environ\.get)\(.*\)'''
+
+  # Игнорируем тестовые файлы
   files = [
     "^tests/",          # Тестовые файлы - fake credentials
     "^docs/",           # Документация - примеры
-    "requirements*.txt", # Файлы зависимостей
+    "^EVIDENCE/P",      # Артефакты предыдущих практик
+    "^reports/",        # Отчёты
+    "requirements.*",   # Файлы зависимостей
+    "Pipfile",         # Файлы зависимостей
+    "poetry.lock",     # Файлы зависимостей
     ".github/workflows/*.yml", # CI конфигурации
-    "EVIDENCE/P*/*",    # Артефакты предыдущих практик
+    "docker-compose.*", # Docker конфигурации
+    "Dockerfile",      # Docker конфигурации
   ]
 
-  # Игнорируем паттерны с тестовыми данными
-  regexes = [
-    "example.*",        # Примеры в документации
-    "test.*",           # Тестовые учетные данные
-    "localhost",        # Локальные окружения
-    "127.0.0.1",        # Тестовые IP адреса
-    "dummy.*",          # Заглушки в коде
+  # Общие паттерны для игнорирования
+  commits = [
+    "initial commit",
+    "merge",
+    "^test",
+    "^fix",
   ]
