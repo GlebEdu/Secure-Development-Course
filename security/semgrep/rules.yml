@@ -11,19 +11,19 @@ rules:
       cwe: "CWE-79: Cross-site Scripting"
 
   - id: simple-hardcoded-secret
-    pattern: "SECRET_KEY ="
+    pattern: "SECRET_KEY = ..."
     message: "Проверьте, не захардкожен ли SECRET_KEY"
     languages: [python]
     severity: WARNING
 
   - id: simple-password-check
-    pattern: "password ="
+    pattern: "password = ..."
     message: "Проверьте, не захардкожен ли пароль"
     languages: [python]
     severity: WARNING
 
   - id: simple-sql-fstring
-    pattern: 'f"SELECT'
+    pattern: 'f"SELECT ..."'
     message: "Проверьте SQL запрос на инъекции"
     languages: [python]
     severity: WARNING
