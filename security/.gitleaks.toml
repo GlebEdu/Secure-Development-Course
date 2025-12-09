@@ -1,5 +1,7 @@
-# security/.gitleaks.toml
 title = "Gitleaks configuration for Habit Tracker Project"
+
+[extend]
+# Используем встроенные правила по умолчанию
 
 [allowlist]
   # Игнорируем тестовые файлы - не содержат реальных секретов
