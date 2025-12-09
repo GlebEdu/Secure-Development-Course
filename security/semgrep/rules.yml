@@ -10,20 +10,38 @@ rules:
       category: security
       cwe: "CWE-79: Cross-site Scripting"
 
-  - id: simple-hardcoded-secret
-    pattern: "SECRET_KEY = ..."
-    message: "Проверьте, не захардкожен ли SECRET_KEY"
+  - id: simple-hardcoded-secret-fixed
+    patterns:
+      - pattern: SECRET_KEY = $VALUE
+      - pattern-not: SECRET_KEY = os.getenv(...)
+      - pattern-not: SECRET_KEY = os.environ.get(...)
+      - pattern-not: SECRET_KEY = $CONFIG.get(...)
+    message: "Проверьте, не захардкожен ли SECRET_KEY (игнорируется если используется os.getenv)"
     languages: [python]
     severity: WARNING
+    metadata:
+      category: security
 
-  - id: simple-password-check
-    pattern: "password = ..."
-    message: "Проверьте, не захардкожен ли пароль"
+  - id: simple-password-check-fixed
+    patterns:
+      - pattern: |
+          password = $VALUE
+      - pattern-not: |
+          password = Column(...)
+      - pattern-not: |
+          password: $TYPE = Field(...)
+      - pattern-not: |
+          password = $MODEL(...)
+    message: "Проверьте, не захардкожен ли пароль (игнорируется для Column/Field определений)"
     languages: [python]
     severity: WARNING
+    metadata:
+      category: security
 
-  - id: simple-sql-fstring
-    pattern: 'f"SELECT ..."'
+  - id: simple-sql-fstring-fixed
+    pattern: 'f"SELECT $QUERY"'
     message: "Проверьте SQL запрос на инъекции"
     languages: [python]
     severity: WARNING
+    metadata:
+      category: security
