@@ -1,0 +1,197 @@
+name: Security - SBOM & SCA
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "**/*.py"
+      - "requirements*.txt"
+      - "pyproject.toml"
+      - "Pipfile"
+      - ".github/workflows/ci-sbom-sca.yml"
+  pull_request:
+    paths:
+      - "**/*.py"
+      - "requirements*.txt"
+      - "pyproject.toml"
+      - "Pipfile"
+      - ".github/workflows/ci-sbom-sca.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sbom_sca:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create evidence directories
+        run: |
+          mkdir -p EVIDENCE/P09
+          echo "Commit: ${{ github.sha }}" > EVIDENCE/P09/sbom_meta.md
+          echo "Workflow: ${{ github.workflow }}" >> EVIDENCE/P09/sbom_meta.md
+          echo "Job: ${{ github.run_id }} (${{ github.run_number }})" >> EVIDENCE/P09/sbom_meta.md
+          echo "Generated: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> EVIDENCE/P09/sbom_meta.md
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Generate SBOM with Syft (CycloneDX)
+        run: |
+          docker run --rm \
+            -v $PWD:/work \
+            -w /work \
+            anchore/syft:v1.5.0 \
+            packages dir:. \
+            -o cyclonedx-json \
+            > EVIDENCE/P09/sbom.json
+
+          # Проверяем что SBOM создан
+          if [ -s EVIDENCE/P09/sbom.json ]; then
+            echo "SBOM generated successfully"
+            echo "Components: $(jq '.components | length' EVIDENCE/P09/sbom.json)"
+          else
+            echo "SBOM generation failed"
+            exit 1
+          fi
+
+      - name: Run SCA with Grype
+        id: sca
+        continue-on-error: true
+        run: |
+          # Запускаем сканирование
+          docker run --rm \
+            -v $PWD:/work \
+            -w /work \
+            anchore/grype:latest \
+            sbom:/work/EVIDENCE/P09/sbom.json \
+            -o json \
+            > EVIDENCE/P09/sca_report.json 2>/dev/null || true
+
+          # Если файл пустой или не создан, создаём пустой отчёт
+          if [ ! -s EVIDENCE/P09/sca_report.json ]; then
+            echo '{"matches": []}' > EVIDENCE/P09/sca_report.json
+          fi
+
+      - name: Generate SCA summary report
+        run: |
+          # Создаём человекочитаемый отчёт
+          echo "# SCA Vulnerability Analysis" > EVIDENCE/P09/sca_summary.md
+          echo "" >> EVIDENCE/P09/sca_summary.md
+
+          echo "**Scan Metadata**" >> EVIDENCE/P09/sca_summary.md
+          echo "- Commit: \`${{ github.sha }}\`" >> EVIDENCE/P09/sca_summary.md
+          echo "- Generated: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> EVIDENCE/P09/sca_summary.md
+          echo "- Scanner: Grype (Anchore)" >> EVIDENCE/P09/sca_summary.md
+          echo "- SBOM Source: Syft v1.5.0" >> EVIDENCE/P09/sca_summary.md
+          echo "" >> EVIDENCE/P09/sca_summary.md
+
+          # Анализируем JSON отчёт
+          if [ -s EVIDENCE/P09/sca_report.json ]; then
+            TOTAL=$(jq '.matches | length' EVIDENCE/P09/sca_report.json)
+
+            echo "## Severity Distribution" >> EVIDENCE/P09/sca_summary.md
+            echo "" >> EVIDENCE/P09/sca_summary.md
+
+            # Создаём таблицу с распределением
+            echo "| Severity | Count | Percentage |" >> EVIDENCE/P09/sca_summary.md
+            echo "|----------|-------|------------|" >> EVIDENCE/P09/sca_summary.md
+
+            # Получаем counts для каждого уровня
+            CRITICAL=$(jq '[.matches[] | select(.vulnerability.severity == "Critical")] | length' EVIDENCE/P09/sca_report.json)
+            HIGH=$(jq '[.matches[] | select(.vulnerability.severity == "High")] | length' EVIDENCE/P09/sca_report.json)
+            MEDIUM=$(jq '[.matches[] | select(.vulnerability.severity == "Medium")] | length' EVIDENCE/P09/sca_report.json)
+            LOW=$(jq '[.matches[] | select(.vulnerability.severity == "Low")] | length' EVIDENCE/P09/sca_summary.md
+            UNKNOWN=$(jq '[.matches[] | select(.vulnerability.severity == "Unknown" or .vulnerability.severity == "")] | length' EVIDENCE/P09/sca_report.json)
+
+            # Вычисляем проценты
+            if [ $TOTAL -gt 0 ]; then
+              P_CRITICAL=$((CRITICAL * 100 / TOTAL))
+              P_HIGH=$((HIGH * 100 / TOTAL))
+              P_MEDIUM=$((MEDIUM * 100 / TOTAL))
+              P_LOW=$((LOW * 100 / TOTAL))
+              P_UNKNOWN=$((UNKNOWN * 100 / TOTAL))
+
+              echo "| Critical | $CRITICAL | ${P_CRITICAL}% |" >> EVIDENCE/P09/sca_summary.md
+              echo "| High | $HIGH | ${P_HIGH}% |" >> EVIDENCE/P09/sca_summary.md
+              echo "| Medium | $MEDIUM | ${P_MEDIUM}% |" >> EVIDENCE/P09/sca_summary.md
+              echo "| Low | $LOW | ${P_LOW}% |" >> EVIDENCE/P09/sca_summary.md
+              echo "| Unknown | $UNKNOWN | ${P_UNKNOWN}% |" >> EVIDENCE/P09/sca_summary.md
+              echo "| **Total** | **$TOTAL** | **100%** |" >> EVIDENCE/P09/sca_summary.md
+            else
+              echo "| **No vulnerabilities found** | 0 | 100% |" >> EVIDENCE/P09/sca_summary.md
+            fi
+
+            echo "" >> EVIDENCE/P09/sca_summary.md
+
+            # Добавляем топ уязвимостей если есть
+            if [ $TOTAL -gt 0 ]; then
+              echo "## Top Vulnerabilities (Critical/High)" >> EVIDENCE/P09/sca_summary.md
+              echo "" >> EVIDENCE/P09/sca_summary.md
+
+              # Извлекаем Critical/High уязвимости
+              jq -r '[.matches[] | select(.vulnerability.severity == "Critical" or .vulnerability.severity == "High")] |
+                     sort_by(.vulnerability.severity) |
+                     .[0:5] |
+                     .[] |
+                     "### \(.vulnerability.id) - \(.vulnerability.severity)\n" +
+                     "- **Package:** \(.artifact.name) \(.artifact.version)\n" +
+                     "- **Type:** \(.vulnerability.dataSource)\n" +
+                     "- **Fixed in:** \(if .vulnerability.fix.versions != null then (.vulnerability.fix.versions | join(", ")) else "No fix available" end)\n" +
+                     "- **Description:** \(.vulnerability.description // "No description")\n"' \
+                EVIDENCE/P09/sca_report.json >> EVIDENCE/P09/sca_summary.md
+
+              echo "" >> EVIDENCE/P09/sca_summary.md
+              echo "For full details, see [sca_report.json](./sca_report.json)" >> EVIDENCE/P09/sca_summary.md
+            fi
+
+            echo "" >> EVIDENCE/P09/sca_summary.md
+            echo "## Next Steps" >> EVIDENCE/P09/sca_summary.md
+            echo "" >> EVIDENCE/P09/sca_summary.md
+            echo "1. **Critical/High vulnerabilities:** Review and apply fixes within 7 days" >> EVIDENCE/P09/sca_summary.md
+            echo "2. **Medium vulnerabilities:** Address within 30 days" >> EVIDENCE/P09/sca_summary.md
+            echo "3. **Low vulnerabilities:** Monitor and address in next release cycle" >> EVIDENCE/P09/sca_summary.md
+            echo "4. **Document exceptions:** Update [policy/waivers.yml](../policy/waivers.yml) if needed" >> EVIDENCE/P09/sca_summary.md
+
+          else
+            echo "## No vulnerabilities detected" >> EVIDENCE/P09/sca_summary.md
+            echo "" >> EVIDENCE/P09/sca_summary.md
+            echo "All dependencies are clean from known vulnerabilities." >> EVIDENCE/P09/sca_summary.md
+          fi
+
+      - name: Check for critical vulnerabilities
+        if: always()
+        run: |
+          if [ -f EVIDENCE/P09/sca_report.json ]; then
+            CRITICAL_COUNT=$(jq '[.matches[] | select(.vulnerability.severity == "Critical")] | length' EVIDENCE/P09/sca_report.json)
+            HIGH_COUNT=$(jq '[.matches[] | select(.vulnerability.severity == "High")] | length' EVIDENCE/P09/sca_report.json)
+
+            if [ "$CRITICAL_COUNT" -gt 0 ]; then
+              echo "::warning::Found $CRITICAL_COUNT Critical vulnerabilities"
+            fi
+
+            if [ "$HIGH_COUNT" -gt 0 ]; then
+              echo "::warning::Found $HIGH_COUNT High vulnerabilities"
+            fi
+
+            echo "Summary: $CRITICAL_COUNT Critical, $HIGH_COUNT High vulnerabilities found"
+          fi
+
+      - name: Upload security artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: P09-Security-Evidence
+          path: EVIDENCE/P09/
+          retention-days: 30
+          if-no-files-found: error

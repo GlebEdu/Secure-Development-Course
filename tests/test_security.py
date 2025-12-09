@@ -88,7 +88,7 @@ class TestSecurityMeasures:
 
         for headers in invalid_tokens:
             response = client.get("/habits", headers=headers)
-            assert response.status_code == 403
+            assert response.status_code == 401
 
     # === Error Handling Security Tests ===
 

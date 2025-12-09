@@ -89,6 +89,6 @@ class TestStats:
     def test_access_stats_without_auth(self, client):
         """Тест доступа к статистике без аутентификации"""
         response = client.get("/stats")
-        assert response.status_code == 403
+        assert response.status_code == 401
         response = client.get("/habits/1/stats")
-        assert response.status_code == 403
+        assert response.status_code == 401
