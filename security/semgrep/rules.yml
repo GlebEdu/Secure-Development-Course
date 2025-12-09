@@ -1,0 +1,64 @@
+rules:
+  - id: py-unsafe-html-echo
+    languages: [python]
+    message: "Потенциально небезопасный вывод пользовательских данных в HTMLResponse"
+    severity: WARNING
+    patterns:
+      - pattern: |
+          HTMLResponse(f"...{$X}...")
+    metadata:
+      category: security
+      cwe: "CWE-79: Cross-site Scripting"
+
+  - id: custom-hardcoded-secret
+    patterns:
+      - pattern: 'SECRET_KEY\s*=\s*"..."'
+      - pattern: 'password\s*=\s*"..."'
+      - pattern: 'token\s*=\s*"..."'
+      - pattern: 'api[_-]?key\s*=\s*"..."'
+      - pattern-not: 'SECRET_KEY\s*=\s*os\.getenv\(...\)'
+      - pattern-not: 'password\s*=\s*os\.getenv\(...\)'
+    message: "Потенциально захардкоженный секрет. Используйте переменные окружения."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [python]
+      confidence: MEDIUM
+
+  - id: custom-sql-injection-risk
+    patterns:
+      - pattern: 'f"SELECT ... {...}"'
+      - pattern: '"SELECT ..." + ...'
+      - pattern-not: 'session\.execute\(...\)'
+      - pattern-not: 'select\(...\)'
+    message: "Потенциальный риск SQL-инъекции. Используйте параметризованные запросы SQLAlchemy."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      technology: [python, sqlalchemy]
+
+  - id: custom-insecure-deserialization
+    patterns:
+      - pattern: 'pickle\.loads\(...\)'
+      - pattern: 'yaml\.load\(...\)'
+      - pattern-not: 'yaml\.safe_load\(...\)'
+    message: "Потенциально небезопасная десериализация. Используйте безопасные альтернативы."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      technology: [python]
+
+  - id: custom-jwt-hardcoded-secret
+    patterns:
+      - pattern: 'JWT_ALGORITHM\s*=\s*"none"'
+      - pattern: 'JWT_SECRET\s*=\s*"..."'
+      - pattern-not: 'JWT_SECRET\s*=\s*os\.getenv\(...\)'
+    message: "Проблемы с конфигурацией JWT. Не используйте алгоритм 'none' и не хардкодите секреты."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      technology: [python, jwt]
