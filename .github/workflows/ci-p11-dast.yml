@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - ".zap/**"
       - "app/**"
       - "src/**"
       - ".github/workflows/ci-p11-dast.yml"
