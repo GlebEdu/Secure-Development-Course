@@ -91,8 +91,6 @@ jobs:
                 -t http://localhost:8080 \
                 -c .zap/context.yaml \
                 -n .zap/context.yaml \
-                -U "test_user" \
-                -P "test_password" \
                 -m 10 \
                 -T 300 \
                 -r zap_baseline.html \

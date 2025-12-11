@@ -1,64 +1,62 @@
-# Этот скрипт выполняется в ZAP (Jython 2.7)
-# Не требует дополнительных зависимостей
-
 import json
 
 
 def authenticate(helper, paramsValues, credentials):
-    """
-    Упрощённый скрипт аутентификации для ZAP
-    """
-    print("[ZAP Auth] Starting authentication...")
+    print("=== ZAP AUTH START ===")
+    print(f"Credentials object: {credentials}")
 
     # Получаем параметры
     username = credentials.getParam("username")
     password = credentials.getParam("password")
-    base_url = "http://localhost:8080"
+    print(f"Username from context: {username}")
+    print(f"Password from context: {'*' * len(password) if password else 'None'}")
 
-    # Формируем URL и данные
+    base_url = "http://localhost:8080"
     login_url = base_url + "/login"
     data = {"username": username, "password": password}
 
-    # Отправляем запрос через ZAP API
-    # ZAP предоставляет объект 'helper' для HTTP запросов
-    try:
-        # Кодируем данные в JSON
-        json_data = json.dumps(data)
+    print(f"Login URL: {login_url}")
+    print(f"Request data: {data}")
 
-        # Отправляем POST запрос
+    try:
+        # Преобразуем в JSON
+        json_data = json.dumps(data)
+        print("Sending POST request...")
+
+        # Отправляем запрос через helper
         response = helper.post(login_url, json_data)
         status_code = response.getStatusCode()
         response_body = response.getResponseBody().toString()
 
-        print(f"[ZAP Auth] Response status: {status_code}")
-        print(f"[ZAP Auth] Response body: {response_body[:100]}...")
+        print(f"Response status: {status_code}")
+        print(f"Response body (first 200 chars): {response_body[:200]}")
 
         if status_code == 200:
-            # Парсим JSON и получаем токен
             response_json = json.loads(response_body)
             token = response_json.get("access_token")
 
             if token:
-                print(f"[ZAP Auth] Success! Token: {token[:30]}...")
+                print(f"SUCCESS! Token obtained: {token[:30]}...")
 
-                # Критически важные строки:
-                # 1. Сохраняем токен в сессию ZAP
+                # 1. Добавляем заголовок ко всем запросам
+                helper.addCustomRequestHeader("Authorization", f"Bearer {token}")
+                # 2. Сохраняем токен в параметры сессии
                 helper.setParam("token", token)
-
-                # 2. Добавляем заголовок Authorization ко всем запросам
-                helper.addCustomRequestHeader("Authorization", "Bearer " + token)
 
                 return response
             else:
-                print("[ZAP Auth] ERROR: No access_token in response")
-                return None
+                print("ERROR: No 'access_token' in response")
         else:
-            print(f"[ZAP Auth] ERROR: Login failed with status {status_code}")
-            return None
+            print(f"ERROR: HTTP {status_code}")
 
     except Exception as e:
-        print(f"[ZAP Auth] EXCEPTION: {str(e)}")
-        return None
+        print(f"EXCEPTION: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+
+    print("=== ZAP AUTH FAILED ===")
+    return None
 
 
 def getRequiredParamsNames():
