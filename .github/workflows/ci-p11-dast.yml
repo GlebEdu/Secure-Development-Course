@@ -49,6 +49,31 @@ jobs:
             # Если файлы конфигурации уже в репозитории, этот шаг можно пропустить
             echo "ZAP configuration directory ready"
 
+      - name: Verify ZAP configuration files
+        run: |
+            echo "=== Checking ZAP configuration ==="
+            ls -la .zap/ || echo "No .zap directory"
+            ls -la EVIDENCE/P11/ || echo "No EVIDENCE directory"
+
+            # Проверяем наличие критичных файлов
+            if [ -f .zap/context.yaml ]; then
+            echo "context.yaml exists"
+            head -20 .zap/context.yaml
+            else
+            echo "ERROR: context.yaml NOT FOUND!"
+            exit 1
+            fi
+
+            if [ -f .zap/auth.py ]; then
+            echo "auth.py exists"
+            head -30 .zap/auth.py
+            else
+            echo "ERROR: auth.py NOT FOUND!"
+            exit 1
+            fi
+
+            echo "=== Configuration verified ==="
+
       - name: ZAP Baseline with Authentication
         run: |
             echo "Starting ZAP with authentication..."
@@ -64,7 +89,6 @@ jobs:
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
                 -t http://localhost:8080 \
-                -S openapi.json \
                 -c .zap/context.yaml \
                 -n .zap/context.yaml \
                 -U "test_user" \
