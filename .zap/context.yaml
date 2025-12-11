@@ -1,0 +1,40 @@
+env:
+  constants:
+    BASE_URL: "http://localhost:8080"
+    USERNAME: "test_user"
+    PASSWORD: "test_password"
+
+contexts:
+  - name: "HabitTrackerAPI"
+    urls:
+      - ^http://localhost:8080.*
+
+    # Настройки аутентификации
+    authentication:
+      method: "script"
+      parameters:
+        script: "auth.py"
+        scriptEngine: "Jython"
+        username: "${USERNAME}"
+        password: "${PASSWORD}"
+
+    # Настройки сессии (JWT токен)
+    sessionManagement:
+      method: "httpAuth"
+      parameters:
+        header: "Authorization"
+        headerValue: "Bearer ${token}"
+
+    # Какие URL защищены
+    includePaths:
+      - ^http://localhost:8080/habits.*
+      - ^http://localhost:8080/checkins.*
+      - ^http://localhost:8080/stats.*
+      - ^http://localhost:8080/users/me
+
+    # Открытые URL (не требуют аутентификации)
+    excludePaths:
+      - ^http://localhost:8080/health
+      - ^http://localhost:8080/login
+      - ^http://localhost:8080/openapi.json
+      - ^http://localhost:8080/docs

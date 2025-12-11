@@ -1,0 +1,13 @@
+# Формат: PluginId	ACTION	[Параметры]
+# Действия: IGNORE, FAIL, WARN, INFO, PASS
+
+# Игнорируем нерелевантные для API проверки
+10015	IGNORE	# Incomplete or No Cache-control Header Set (для API это нормально)
+10054	IGNORE	# CSP Header Not Set (не нужно для API)
+10055	IGNORE	# HTTP Only Cookie Missing (используем JWT в header)
+10096	IGNORE	# Timestamp Disclosure (информационный шум)
+10109	IGNORE	# Modern Web Application (не релевантно)
+
+# Устанавливаем свой порог для определённых правил
+40012	WARN	# Cross-Domain JavaScript Source File Inclusion
+40017	WARN	# Server Leaks Version Information
