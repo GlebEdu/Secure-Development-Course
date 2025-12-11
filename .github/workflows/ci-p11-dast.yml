@@ -44,14 +44,19 @@ jobs:
 
       - name: ZAP Baseline
         run: |
-          docker run --rm --network host -v $PWD:/zap/wrk ghcr.io/zaproxy/zaproxy:stable \
+            # Запускаем ZAP с изменением рабочей директории
+            docker run --rm --network host \
+            -v $PWD:/zap/wrk \
+            -w /zap/wrk \
+            -u root \
+            ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
-              -t http://localhost:8080 \
-              -r zap_baseline.html \
-              -J zap_baseline.json \
-              -d || true
-              --add-opens java.base/java.lang=ALL-UNNAMED || true
-          mv zap_baseline.* EVIDENCE/P11/ || true
+                -t http://localhost:8080 \
+                -r zap_baseline.html \
+                -J zap_baseline.json \
+                -d || true
+            # Перемещаем отчеты
+            mv zap_baseline.* EVIDENCE/P11/ 2>/dev/null || true
 
       - name: Upload P11 evidence
         if: always()
