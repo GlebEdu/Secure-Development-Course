@@ -82,6 +82,13 @@ jobs:
             # Сначала проверяем, что приложение доступно
             curl -f http://localhost:8080/health || echo "Health check failed but continuing..."
 
+            echo "=== Checking files inside container ==="
+            docker run --rm --network host \
+            -v $PWD:/zap/wrk:rw \
+            -w /zap/wrk \
+            ghcr.io/zaproxy/zaproxy:stable \
+            bash -c "ls -la .zap/ && echo '---' && cat .zap/context.yaml"
+
             # Запускаем ZAP с конфигурацией
             docker run --rm --network host \
             -v $PWD:/zap/wrk:rw \

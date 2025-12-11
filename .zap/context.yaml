@@ -10,9 +10,3 @@ contexts:
         scriptEngine: "Jython"
         username: "test_user"
         password: "test_password"
-
-    sessionManagement:
-      method: "httpAuth"
-      parameters:
-        header: "Authorization"
-        headerValue: "Bearer ${token}"

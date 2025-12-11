@@ -3,20 +3,20 @@ import json
 
 def authenticate(helper, paramsValues, credentials):
     print("=== ZAP AUTH START ===")
-    print(f"Credentials object: {credentials}")
+    print("Credentials object: " + str(credentials))
 
     # Получаем параметры
     username = credentials.getParam("username")
     password = credentials.getParam("password")
-    print(f"Username from context: {username}")
-    print(f"Password from context: {'*' * len(password) if password else 'None'}")
+    print("Username from context: " + str(username))
+    print("Password from context: " + ("*" * len(password) if password else "None"))
 
     base_url = "http://localhost:8080"
     login_url = base_url + "/login"
     data = {"username": username, "password": password}
 
-    print(f"Login URL: {login_url}")
-    print(f"Request data: {data}")
+    print("Login URL: " + login_url)
+    print("Request data: " + json.dumps(data))
 
     try:
         # Преобразуем в JSON
@@ -28,18 +28,18 @@ def authenticate(helper, paramsValues, credentials):
         status_code = response.getStatusCode()
         response_body = response.getResponseBody().toString()
 
-        print(f"Response status: {status_code}")
-        print(f"Response body (first 200 chars): {response_body[:200]}")
+        print("Response status: " + str(status_code))
+        print("Response body (first 200 chars): " + response_body[:200])
 
         if status_code == 200:
             response_json = json.loads(response_body)
             token = response_json.get("access_token")
 
             if token:
-                print(f"SUCCESS! Token obtained: {token[:30]}...")
+                print("SUCCESS! Token obtained: " + token[:30] + "...")
 
                 # 1. Добавляем заголовок ко всем запросам
-                helper.addCustomRequestHeader("Authorization", f"Bearer {token}")
+                helper.addCustomRequestHeader("Authorization", "Bearer " + token)
                 # 2. Сохраняем токен в параметры сессии
                 helper.setParam("token", token)
 
@@ -47,10 +47,10 @@ def authenticate(helper, paramsValues, credentials):
             else:
                 print("ERROR: No 'access_token' in response")
         else:
-            print(f"ERROR: HTTP {status_code}")
+            print("ERROR: HTTP " + str(status_code))
 
     except Exception as e:
-        print(f"EXCEPTION: {str(e)}")
+        print("EXCEPTION: " + str(e))
         import traceback
 
         traceback.print_exc()
