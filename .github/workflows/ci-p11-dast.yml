@@ -89,7 +89,7 @@ jobs:
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
                 -t http://localhost:8080 \
-                -c .zap/context.yaml \
+                -c .zap/rules.tsv \
                 -n .zap/context.yaml \
                 -m 10 \
                 -T 300 \
