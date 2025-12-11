@@ -16,9 +16,3 @@ contexts:
       parameters:
         header: "Authorization"
         headerValue: "Bearer ${token}"
-
-    includePaths:
-      - ^http://localhost:8080/habits.*
-      - ^http://localhost:8080/checkins.*
-      - ^http://localhost:8080/stats.*
-      - ^http://localhost:8080/users/me
