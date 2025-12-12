@@ -12,6 +12,11 @@ spec:
       labels:
         app: habit-tracker
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
       containers:
         - name: app
           image: habit-tracker:latest
+          securityContext:
+            allowPrivilegeEscalation: false
