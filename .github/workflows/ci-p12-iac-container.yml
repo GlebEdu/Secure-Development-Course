@@ -51,10 +51,15 @@ jobs:
 
       - name: Trivy image scan
         run: |
-          docker run --rm -v $PWD:/work aquasec/trivy \
+            docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v $PWD:/work \
+            aquasec/trivy:latest \
             image app:local \
-              --format json \
-              --output /work/EVIDENCE/P12/trivy_report.json || true
+            --severity CRITICAL,HIGH \
+            --format json \
+            --output /work/EVIDENCE/P12/trivy_report.json || true
+
 
       - name: Upload P12 evidence
         if: always()
