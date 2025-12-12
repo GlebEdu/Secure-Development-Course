@@ -1,0 +1,142 @@
+name: Security - DAST (P11, ZAP baseline)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".zap/**"
+      - "app/**"
+      - "src/**"
+      - ".github/workflows/ci-p11-dast.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dast_p11:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure evidence dirs
+        run: mkdir -p EVIDENCE/P11
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run app
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8080 &
+          timeout 30 bash -c 'until curl -sf http://localhost:8080/health; do sleep 1; done'
+
+      - name: Prepare ZAP configuration
+        run: |
+            # Убедимся, что директория существует
+            mkdir -p .zap
+            # Если файлы конфигурации уже в репозитории, этот шаг можно пропустить
+            echo "ZAP configuration directory ready"
+
+      - name: Verify ZAP configuration files
+        run: |
+            echo "=== Checking ZAP configuration ==="
+            ls -la .zap/ || echo "No .zap directory"
+            ls -la EVIDENCE/P11/ || echo "No EVIDENCE directory"
+
+            # Проверяем наличие критичных файлов
+            if [ -f .zap/context.yaml ]; then
+            echo "context.yaml exists"
+            head -20 .zap/context.yaml
+            else
+            echo "ERROR: context.yaml NOT FOUND!"
+            exit 1
+            fi
+
+            if [ -f .zap/auth.py ]; then
+            echo "auth.py exists"
+            head -30 .zap/auth.py
+            else
+            echo "ERROR: auth.py NOT FOUND!"
+            exit 1
+            fi
+
+            echo "=== Configuration verified ==="
+
+      - name: ZAP Baseline with Authentication
+        run: |
+            echo "Starting ZAP with authentication..."
+
+            # Сначала проверяем, что приложение доступно
+            curl -f http://localhost:8080/health || echo "Health check failed but continuing..."
+
+            echo "=== Checking files inside container ==="
+            docker run --rm --network host \
+            -v $PWD:/zap/wrk:rw \
+            -w /zap/wrk \
+            ghcr.io/zaproxy/zaproxy:stable \
+            bash -c "ls -la .zap/ && echo '---' && cat .zap/context.yaml"
+
+            # Запускаем ZAP с конфигурацией
+            docker run --rm --network host \
+            -v $PWD:/zap/wrk:rw \
+            -w /zap/wrk \
+            -u root \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+                -t http://localhost:8080 \
+                -c .zap/rules.tsv \
+                -n .zap/context.yaml \
+                -m 10 \
+                -T 300 \
+                -r zap_baseline.html \
+                -J zap_baseline.json \
+                -w zap_baseline.md \
+                -a \
+                -d || true
+
+            # Перемещаем отчёты
+            mv zap_baseline.* EVIDENCE/P11/ 2>/dev/null || true
+            echo "Scan completed"
+
+      - name: Debug - Show scan results
+        if: always()
+        run: |
+            echo "=== Scan Results Summary ==="
+            if [ -f EVIDENCE/P11/zap_baseline.json ]; then
+            # Устанавливаем jq если нет
+            if ! command -v jq &> /dev/null; then
+                sudo apt-get update && sudo apt-get install -y jq
+            fi
+
+            # Извлекаем статистику
+            echo "High: $(jq '[.site[].alerts[] | select(.riskcode=="3")] | length' EVIDENCE/P11/zap_baseline.json || echo '0')"
+            echo "Medium: $(jq '[.site[].alerts[] | select(.riskcode=="2")] | length' EVIDENCE/P11/zap_baseline.json || echo '0')"
+            echo "Low: $(jq '[.site[].alerts[] | select(.riskcode=="1")] | length' EVIDENCE/P11/zap_baseline.json || echo '0')"
+            echo "Informational: $(jq '[.site[].alerts[] | select(.riskcode=="0")] | length' EVIDENCE/P11/zap_baseline.json || echo '0')"
+
+            # Список найденных URL
+            echo "=== URLs found ==="
+            jq -r '.site[].alerts[].instances[].uri' EVIDENCE/P11/zap_baseline.json 2>/dev/null | sort -u | head -20
+            else
+            echo "No report file found"
+            fi
+
+      - name: Upload P11 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: P11_EVIDENCE
+          path: EVIDENCE/P11

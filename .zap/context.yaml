@@ -1,0 +1,12 @@
+contexts:
+  - name: "HabitTrackerAPI"
+    urls:
+      - ^http://localhost:8080.*
+
+    authentication:
+      method: "script"
+      parameters:
+        script: "auth.py"
+        scriptEngine: "Jython"
+        username: "test_user"
+        password: "test_password"
