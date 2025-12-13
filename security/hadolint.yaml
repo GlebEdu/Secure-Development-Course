@@ -1,0 +1,3 @@
+ignored:
+  - DL3008  # apt-get version pinning слишком шумное и не всегда нужно
+  - DL3045  # COPY без WORKDIR допустимо в multi-stage

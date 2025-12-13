@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: habit-tracker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: habit-tracker
+  template:
+    metadata:
+      labels:
+        app: habit-tracker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: app
+          image: habit-tracker:latest
+          securityContext:
+            allowPrivilegeEscalation: false

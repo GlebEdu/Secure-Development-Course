@@ -2,7 +2,7 @@
 FROM python:3.11-slim AS builder
 
 # Установка зависимостей для сборки
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends\
     build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Тестовая стадия
 FROM python:3.11-slim AS tester
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends\
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r app && useradd -r -g app app
@@ -47,7 +47,7 @@ LABEL description="Habit Tracker API"
 LABEL version="1.0.0"
 
 # Установка только runtime зависимостей + curl для healthcheck
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends\
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r app && useradd -r -g app app
